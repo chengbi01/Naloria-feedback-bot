@@ -55,7 +55,6 @@ class AnonChoiceView(discord.ui.View):
         else:
             author = interaction.user
             
-            # SỬ DỤNG MENTION TRONG TIÊU ĐỀ
             title = f":loudspeaker: Phản hồi CÔNG KHAI từ {author.mention}" 
             
             footer_text = f"{new_footer_base} (Gửi Công khai bởi {author} | ID: {author.id})"
@@ -192,10 +191,8 @@ async def setup_feedback(ctx):
 @app_commands.default_permissions(mention_everyone=True)
 async def announce_everyone_slash(interaction: discord.Interaction, noi_dung: str):
     
-    # --- CHECK BẢO VỆ LỖI CHÍNH ---
     if interaction.guild is None or interaction.user is None:
         return await interaction.response.send_message("❌ Lệnh này chỉ dùng được trong máy chủ (server).", ephemeral=True)
-    # -----------------------------
     
     if not interaction.user.guild_permissions.mention_everyone:
         return await interaction.response.send_message("❌ Bạn không có quyền 'Gắn thẻ mọi người' (@everyone) để sử dụng lệnh này.", ephemeral=True)
@@ -221,15 +218,15 @@ async def announce_everyone_slash(interaction: discord.Interaction, noi_dung: st
 @bot.tree.command(name="tao_hang_loat_kenh", description="Tạo các kênh theo một tên mẫu và số lượng.")
 @app_commands.describe(
     ten_mau="Tên mẫu cho kênh (ví dụ: 'kenh-thửnghiệm-' - Sẽ tự động thêm số thứ tự)",
-    so_luong="Số lượng kênh bạn muốn tạo (tối đa 200 kênh)" 
+    so_luong="Số lượng kênh bạn muốn tạo (tối đa 200 kênh)",
+    # THAM SỐ MỚI: Thông điệp tùy chỉnh cho kênh mới
+    thong_diep="Thông điệp tùy chỉnh để gửi vào kênh mới (sẽ kèm @everyone). (Tùy chọn)" 
 )
 @app_commands.default_permissions(manage_channels=True)
-async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: str, so_luong: app_commands.Range[int, 1, 200]):
+async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: str, so_luong: app_commands.Range[int, 1, 200], thong_diep: str = None):
     
-    # --- CHECK BẢO VỆ LỖI CHÍNH ---
     if interaction.guild is None or interaction.user is None:
         return await interaction.response.send_message("❌ Lệnh này chỉ dùng được trong máy chủ (server).", ephemeral=True)
-    # -----------------------------
     
     if not interaction.user.guild_permissions.manage_channels:
         return await interaction.response.send_message("❌ Bạn không có quyền 'Quản lý Kênh'.", ephemeral=True)
@@ -245,10 +242,21 @@ async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: 
         ten_kenh_moi = ten_kenh_moi.replace(" ", "-") 
 
         try:
-            await interaction.guild.create_text_channel(name=ten_kenh_moi)
+            # TẠO KÊNH VÀ LƯU ĐỐI TƯỢNG KÊNH
+            new_channel = await interaction.guild.create_text_channel(name=ten_kenh_moi)
+            
+            # --- LOGIC GỬI THÔNG ĐIỆP TÙY CHỈNH ---
+            if thong_diep:
+                final_message = f"@everyone 📢 {thong_diep}"
+            else:
+                final_message = f"@everyone Chào mừng đến với kênh mới {new_channel.mention}! Đây là kênh được tạo tự động."
+                
+            await new_channel.send(final_message)
+            # -------------------------------------
+            
             kenh_da_tao += 1
             
-            # ĐÃ THAY ĐỔI: Thông báo tiến độ sau mỗi 2 kênh
+            # Thông báo tiến độ (Sau mỗi 2 kênh)
             if kenh_da_tao % 2 == 0: 
                  await interaction.followup.send(f"✅ Đã tạo {kenh_da_tao}/{so_luong} kênh. Vẫn đang tiếp tục...", ephemeral=True)
                  
@@ -277,10 +285,8 @@ async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: 
 @app_commands.default_permissions(manage_channels=True)
 async def create_channels_list_slash(interaction: discord.Interaction, danh_sach_ten: str):
     
-    # --- CHECK BẢO VỆ LỖI CHÍNH ---
     if interaction.guild is None or interaction.user is None:
         return await interaction.response.send_message("❌ Lệnh này chỉ dùng được trong máy chủ (server).", ephemeral=True)
-    # -----------------------------
     
     if not interaction.user.guild_permissions.manage_channels:
         return await interaction.response.send_message("❌ Bạn không có quyền 'Quản lý Kênh'.", ephemeral=True)
