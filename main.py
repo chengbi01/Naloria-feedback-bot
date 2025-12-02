@@ -18,7 +18,6 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 try:
     FEEDBACK_CHANNEL_ID = int(os.getenv("FEEDBACK_CHANNEL_ID")) 
 except (TypeError, ValueError):
-    # Giá trị mặc định nếu biến môi trường bị thiếu
     FEEDBACK_CHANNEL_ID = 0 
 
 # ====================================================================
@@ -55,8 +54,10 @@ class AnonChoiceView(discord.ui.View):
             color = discord.Color.from_rgb(255, 99, 71)
         else:
             author = interaction.user
+            
             # SỬ DỤNG MENTION TRONG TIÊU ĐỀ
             title = f":loudspeaker: Phản hồi CÔNG KHAI từ {author.mention}" 
+            
             footer_text = f"{new_footer_base} (Gửi Công khai bởi {author} | ID: {author.id})"
             color = discord.Color.blue()
         
@@ -141,9 +142,7 @@ async def on_ready():
     print(f'Bot đã đăng nhập với tên: {bot.user}')
     
     try:
-        # Đăng ký View cố định và đồng bộ lệnh slash
         bot.add_view(ChannelLauncherView(bot)) 
-        
         synced = await bot.tree.sync()
         print(f"Đã đồng bộ hóa {len(synced)} lệnh slash.")
     except Exception as e:
@@ -193,6 +192,11 @@ async def setup_feedback(ctx):
 @app_commands.default_permissions(mention_everyone=True)
 async def announce_everyone_slash(interaction: discord.Interaction, noi_dung: str):
     
+    # --- CHECK BẢO VỆ LỖI CHÍNH ---
+    if interaction.guild is None or interaction.user is None:
+        return await interaction.response.send_message("❌ Lệnh này chỉ dùng được trong máy chủ (server).", ephemeral=True)
+    # -----------------------------
+    
     if not interaction.user.guild_permissions.mention_everyone:
         return await interaction.response.send_message("❌ Bạn không có quyền 'Gắn thẻ mọi người' (@everyone) để sử dụng lệnh này.", ephemeral=True)
     
@@ -210,9 +214,60 @@ async def announce_everyone_slash(interaction: discord.Interaction, noi_dung: st
     except Exception as e:
         await interaction.followup.send(f"❌ Đã xảy ra lỗi khi gửi thông báo: {e}", ephemeral=True)
 
+# ====================================================================
+# LỆNH 2 (SLASH): TẠO KÊNH HÀNG LOẠT (Tên mẫu và số lượng 200)
+# ====================================================================
+
+@bot.tree.command(name="tao_hang_loat_kenh", description="Tạo các kênh theo một tên mẫu và số lượng.")
+@app_commands.describe(
+    ten_mau="Tên mẫu cho kênh (ví dụ: 'kenh-thửnghiệm-' - Sẽ tự động thêm số thứ tự)",
+    so_luong="Số lượng kênh bạn muốn tạo (tối đa 200 kênh)" 
+)
+@app_commands.default_permissions(manage_channels=True)
+async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: str, so_luong: app_commands.Range[int, 1, 200]):
+    
+    # --- CHECK BẢO VỆ LỖI CHÍNH ---
+    if interaction.guild is None or interaction.user is None:
+        return await interaction.response.send_message("❌ Lệnh này chỉ dùng được trong máy chủ (server).", ephemeral=True)
+    # -----------------------------
+    
+    if not interaction.user.guild_permissions.manage_channels:
+        return await interaction.response.send_message("❌ Bạn không có quyền 'Quản lý Kênh'.", ephemeral=True)
+    
+    await interaction.response.defer(thinking=True) 
+
+    kenh_da_tao = 0
+    thoi_gian_bat_dau = time.time()
+    
+    for i in range(1, so_luong + 1):
+        so_thu_tu = f"{i:02}" 
+        ten_kenh_moi = f"{ten_mau.lower()}{so_thu_tu}"
+        ten_kenh_moi = ten_kenh_moi.replace(" ", "-") 
+
+        try:
+            await interaction.guild.create_text_channel(name=ten_kenh_moi)
+            kenh_da_tao += 1
+            
+            # ĐÃ THAY ĐỔI: Thông báo tiến độ sau mỗi 2 kênh
+            if kenh_da_tao % 2 == 0: 
+                 await interaction.followup.send(f"✅ Đã tạo {kenh_da_tao}/{so_luong} kênh. Vẫn đang tiếp tục...", ephemeral=True)
+                 
+        except Exception as e:
+            await interaction.followup.send(f"❌ Lỗi khi tạo kênh `{ten_kenh_moi}`: {e}", ephemeral=True)
+            break
+            
+    thoi_gian_ket_thuc = time.time()
+    tong_thoi_gian = thoi_gian_ket_thuc - thoi_gian_bat_dau
+    
+    await interaction.followup.send(
+        f"🎉 **HOÀN TẤT TẠO KÊNH HÀNG LOẠT!**\n"
+        f"Đã tạo thành công **{kenh_da_tao}** kênh.\n"
+        f"Tổng thời gian: **{tong_thoi_gian:.2f} giây** (hoặc khoảng **{tong_thoi_gian / 60:.2f} phút**)"
+    )
+
 
 # ====================================================================
-# LỆNH 2 (SLASH): TẠO KÊNH THEO DANH SÁCH TÊN CỤ THỂ
+# LỆNH 3 (SLASH): TẠO KÊNH THEO DANH SÁCH TÊN CỤ THỂ (DỰ PHÒNG)
 # ====================================================================
 
 @bot.tree.command(name='tao_ds_kenh', description='Tạo kênh văn bản dựa trên danh sách tên được ngăn cách bằng dấu phẩy.')
@@ -222,6 +277,11 @@ async def announce_everyone_slash(interaction: discord.Interaction, noi_dung: st
 @app_commands.default_permissions(manage_channels=True)
 async def create_channels_list_slash(interaction: discord.Interaction, danh_sach_ten: str):
     
+    # --- CHECK BẢO VỆ LỖI CHÍNH ---
+    if interaction.guild is None or interaction.user is None:
+        return await interaction.response.send_message("❌ Lệnh này chỉ dùng được trong máy chủ (server).", ephemeral=True)
+    # -----------------------------
+    
     if not interaction.user.guild_permissions.manage_channels:
         return await interaction.response.send_message("❌ Bạn không có quyền 'Quản lý Kênh'.", ephemeral=True)
     
@@ -229,7 +289,7 @@ async def create_channels_list_slash(interaction: discord.Interaction, danh_sach
 
     guild = interaction.guild
     if guild is None:
-        return await interaction.followup.send("Lệnh này chỉ dùng được trong máy chủ (server) Discord.")
+        return await interaction.followup.send("Lệnh này chỉ dùng được trong máy chủ (server).")
 
     gioi_han_discord = 500
     guild = await bot.fetch_guild(guild.id)
@@ -258,7 +318,6 @@ async def create_channels_list_slash(interaction: discord.Interaction, danh_sach
     
     channels_created = 0
     
-    # --- LOGIC TẠO KÊNH ĐÃ KHÔI PHỤC ---
     for channel_name_raw in ten_kenh_list:
         channel_name = channel_name_raw 
         
@@ -275,7 +334,6 @@ async def create_channels_list_slash(interaction: discord.Interaction, danh_sach
         except Exception as e:
             await interaction.followup.send(f"❌ Đã xảy ra lỗi chung khi tạo kênh {channel_name}: {e}")
             break
-    # --- KẾT THÚC LOGIC TẠO KÊNH ---
 
     end_time = time.time()
     tong_thoi_gian = end_time - start_time
