@@ -55,6 +55,7 @@ class AnonChoiceView(discord.ui.View):
         else:
             author = interaction.user
             
+            # SỬ DỤNG MENTION TRONG TIÊU ĐỀ
             title = f":loudspeaker: Phản hồi CÔNG KHAI từ {author.mention}" 
             
             footer_text = f"{new_footer_base} (Gửi Công khai bởi {author} | ID: {author.id})"
@@ -130,7 +131,7 @@ intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
 intents.dm_messages = True
-intents.members = True 
+intents.members = True # BẮT BUỘC cho việc tag tên người dùng
 
 # Khởi tạo Bot
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -191,6 +192,7 @@ async def setup_feedback(ctx):
 @app_commands.default_permissions(mention_everyone=True)
 async def announce_everyone_slash(interaction: discord.Interaction, noi_dung: str):
     
+    # CHECK BẢO VỆ LỖI CRASH
     if interaction.guild is None or interaction.user is None:
         return await interaction.response.send_message("❌ Lệnh này chỉ dùng được trong máy chủ (server).", ephemeral=True)
     
@@ -215,16 +217,18 @@ async def announce_everyone_slash(interaction: discord.Interaction, noi_dung: st
 # LỆNH 2 (SLASH): TẠO KÊNH HÀNG LOẠT (Tên mẫu và số lượng 200)
 # ====================================================================
 
-@bot.tree.command(name="tao_hang_loat_kenh", description="Tạo các kênh theo một tên mẫu và số lượng.")
+@bot.tree.command(name="tao_hang_loat_kenh", description="Xóa TẤT CẢ kênh hiện có và tạo các kênh mới theo tên mẫu.")
 @app_commands.describe(
     ten_mau="Tên mẫu cho kênh (ví dụ: 'kenh-thửnghiệm-' - Sẽ tự động thêm số thứ tự)",
     so_luong="Số lượng kênh bạn muốn tạo (tối đa 200 kênh)",
-    # THAM SỐ MỚI: Thông điệp tùy chỉnh cho kênh mới
-    thong_diep="Thông điệp tùy chỉnh để gửi vào kênh mới (sẽ kèm @everyone). (Tùy chọn)" 
+    xoa_kenh_hien_tai="XÁC NHẬN: Xóa TẤT CẢ các kênh (TRỪ kênh này) trước khi tạo kênh mới. (True/False)",
+    thong_diep="Thông điệp tùy chỉnh để gửi vào kênh mới (sẽ kèm @everyone). (Tùy chọn)",
+    url_anh_chao="URL ảnh (link trực tiếp) để thêm vào thông báo chào mừng kênh. (Tùy chọn)"
 )
 @app_commands.default_permissions(manage_channels=True)
-async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: str, so_luong: app_commands.Range[int, 1, 200], thong_diep: str = None):
+async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: str, so_luong: app_commands.Range[int, 1, 200], xoa_kenh_hien_tai: bool, thong_diep: str = None, url_anh_chao: str = None):
     
+    # CHECK BẢO VỆ LỖI CRASH
     if interaction.guild is None or interaction.user is None:
         return await interaction.response.send_message("❌ Lệnh này chỉ dùng được trong máy chủ (server).", ephemeral=True)
     
@@ -232,9 +236,38 @@ async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: 
         return await interaction.response.send_message("❌ Bạn không có quyền 'Quản lý Kênh'.", ephemeral=True)
     
     await interaction.response.defer(thinking=True) 
+    
+    guild = interaction.guild
 
+    # =======================================================
+    # BƯỚC XÓA KÊNH TRƯỚC (NẾU ĐƯỢC XÁC NHẬN)
+    # =======================================================
+    if xoa_kenh_hien_tai:
+        channels_to_delete = [c for c in guild.channels if c.id != interaction.channel_id]
+        deleted_count = 0
+        
+        await interaction.followup.send(f"⚠️ **BƯỚC 1/2: Bắt đầu XÓA {len(channels_to_delete)} kênh hiện có.** (TRỪ kênh hiện tại này)")
+        
+        for channel in channels_to_delete:
+            try:
+                await channel.delete()
+                deleted_count += 1
+            except discord.Forbidden:
+                await interaction.followup.send(f"❌ Lỗi quyền: Bot không có quyền xóa kênh `{channel.name}`. Dừng quá trình xóa.", ephemeral=True)
+                return 
+            except Exception as e:
+                print(f"Lỗi khi xóa kênh {channel.name}: {e}")
+
+        await interaction.followup.send(f"✅ **Đã hoàn thành xóa {deleted_count} kênh.** Bắt đầu tạo kênh mới...")
+        await asyncio.sleep(1) 
+
+    # =======================================================
+    # BƯỚC TẠO KÊNH MỚI VÀ GỬI EMBED
+    # =======================================================
     kenh_da_tao = 0
     thoi_gian_bat_dau = time.time()
+    
+    await interaction.followup.send(f"🚀 **BƯỚC 2/2: Bắt đầu tạo {so_luong} kênh mới** theo mẫu `{ten_mau}`...")
     
     for i in range(1, so_luong + 1):
         so_thu_tu = f"{i:02}" 
@@ -242,17 +275,29 @@ async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: 
         ten_kenh_moi = ten_kenh_moi.replace(" ", "-") 
 
         try:
-            # TẠO KÊNH VÀ LƯU ĐỐI TƯỢNG KÊNH
+            # 1. TẠO KÊNH VÀ LƯU ĐỐI TƯỢNG KÊNH
             new_channel = await interaction.guild.create_text_channel(name=ten_kenh_moi)
             
-            # --- LOGIC GỬI THÔNG ĐIỆP TÙY CHỈNH ---
+            # 2. CHUẨN BỊ VÀ GỬI EMBED (CÓ ẢNH)
+            
+            # Xác định nội dung chính cho Embed
             if thong_diep:
-                final_message = f"@everyone 📢 {thong_diep}"
+                desc = thong_diep
             else:
-                final_message = f"@everyone Chào mừng đến với kênh mới {new_channel.mention}! Đây là kênh được tạo tự động."
+                desc = f"Chào mừng đến với kênh mới {new_channel.mention}! Đây là kênh được tạo tự động."
                 
-            await new_channel.send(final_message)
-            # -------------------------------------
+            embed = discord.Embed(
+                title=f"🎉 CHÀO MỪNG ĐẾN VỚI KÊNH {new_channel.name.upper()}!",
+                description=desc,
+                color=discord.Color.green()
+            )
+            
+            # Thêm hình ảnh nếu URL được cung cấp
+            if url_anh_chao:
+                embed.set_image(url=url_anh_chao)
+                
+            # Gửi tin nhắn ping @everyone và Embed
+            await new_channel.send(content="@everyone", embed=embed)
             
             kenh_da_tao += 1
             
@@ -272,81 +317,6 @@ async def tao_hang_loat_kenh_command(interaction: discord.Interaction, ten_mau: 
         f"Đã tạo thành công **{kenh_da_tao}** kênh.\n"
         f"Tổng thời gian: **{tong_thoi_gian:.2f} giây** (hoặc khoảng **{tong_thoi_gian / 60:.2f} phút**)"
     )
-
-
-# ====================================================================
-# LỆNH 3 (SLASH): TẠO KÊNH THEO DANH SÁCH TÊN CỤ THỂ (DỰ PHÒNG)
-# ====================================================================
-
-@bot.tree.command(name='tao_ds_kenh', description='Tạo kênh văn bản dựa trên danh sách tên được ngăn cách bằng dấu phẩy.')
-@app_commands.describe(
-    danh_sach_ten='Danh sách tên kênh, ngăn cách bằng dấu phẩy (ví dụ: Kế hoạch,Thảo luận,Báo cáo).'
-)
-@app_commands.default_permissions(manage_channels=True)
-async def create_channels_list_slash(interaction: discord.Interaction, danh_sach_ten: str):
-    
-    if interaction.guild is None or interaction.user is None:
-        return await interaction.response.send_message("❌ Lệnh này chỉ dùng được trong máy chủ (server).", ephemeral=True)
-    
-    if not interaction.user.guild_permissions.manage_channels:
-        return await interaction.response.send_message("❌ Bạn không có quyền 'Quản lý Kênh'.", ephemeral=True)
-    
-    await interaction.response.defer(thinking=True)
-
-    guild = interaction.guild
-    if guild is None:
-        return await interaction.followup.send("Lệnh này chỉ dùng được trong máy chủ (server).")
-
-    gioi_han_discord = 500
-    guild = await bot.fetch_guild(guild.id)
-    current_channels = len(guild.channels)
-    
-    ten_kenh_list = [
-        ten.strip() 
-        for ten in danh_sach_ten.split(',') 
-        if ten.strip()
-    ]
-    
-    so_luong_yeu_cau = len(ten_kenh_list)
-    
-    if not ten_kenh_list:
-        return await interaction.followup.send("❌ Vui lòng cung cấp danh sách tên kênh được ngăn cách bằng dấu phẩy.")
-
-    if current_channels + so_luong_yeu_cau > gioi_han_discord:
-        await interaction.followup.send(f"⚠️ Giới hạn Discord là {gioi_han_discord} kênh. Một số kênh trong danh sách của bạn sẽ không được tạo.")
-        ten_kenh_list = ten_kenh_list[:gioi_han_discord - current_channels]
-        so_luong_tao = len(ten_kenh_list)
-    else:
-        so_luong_tao = so_luong_yeu_cau
-
-    start_time = time.time()
-    await interaction.followup.send(f"🚀 Bắt đầu tạo **{so_luong_tao}** kênh theo danh sách cung cấp...")
-    
-    channels_created = 0
-    
-    for channel_name_raw in ten_kenh_list:
-        channel_name = channel_name_raw 
-        
-        try:
-            await guild.create_text_channel(name=channel_name)
-            channels_created += 1
-            
-            if channels_created % 10 == 0:
-                await interaction.followup.send(f"✅ Đã tạo {channels_created}/{so_luong_tao} kênh theo danh sách. Vẫn đang tiếp tục...")
-
-        except discord.Forbidden:
-            await interaction.followup.send("❌ Lỗi: Bot không có quyền 'Quản lý Kênh' hoặc vai trò của bot không đủ cao.")
-            break
-        except Exception as e:
-            await interaction.followup.send(f"❌ Đã xảy ra lỗi chung khi tạo kênh {channel_name}: {e}")
-            break
-
-    end_time = time.time()
-    tong_thoi_gian = end_time - start_time
-    
-    await interaction.followup.send(f"🎉 **HOÀN TẤT TẠO KÊNH THEO DANH SÁCH!**")
-    await interaction.followup.send(f"Đã tạo thành công **{channels_created}** kênh.")
-    await interaction.followup.send(f"Tổng thời gian: **{tong_thoi_gian:.2f} giây** (hoặc khoảng **{tong_thoi_gian / 60:.2f} phút**)")
 
 
 # ====================================================================
