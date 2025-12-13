@@ -33,27 +33,36 @@ class AnonChoiceView(discord.ui.View):
         for item in self.children:
             item.disabled = True
         if self.message:
-            await self.message.edit(
-                content="⚠️ **Lựa chọn phản hồi đã hết thời gian (3 phút).** Vui lòng gửi lại tin nhắn.", 
-                embed=None, 
-                view=self
-            )
+            try:
+                await self.message.edit(
+                    content="⚠️ **Lựa chọn phản hồi đã hết thời gian (3 phút).** Vui lòng gửi lại tin nhắn.", 
+                    embed=None, 
+                    view=self
+                )
+            except:
+                pass
 
     async def send_feedback(self, interaction: discord.Interaction, is_anonymous: bool):
         feedback_channel = self.bot.get_channel(self.feedback_channel_id)
-        embed_feedback = discord.Embed(timestamp=discord.utils.utcnow())
+        
+        # [TỰ ĐỘNG LẤY TÊN BOT]
+        bot_name = self.bot.user.name
+        
+        embed_feedback = discord.Embed(
+            timestamp=discord.utils.utcnow() 
+        )
 
         if is_anonymous:
-            # GIAO DIỆN ẨN DANH MỚI
+            # --- CẤU HÌNH ẨN DANH ---
             embed_feedback.title = "🕵️ Phản hồi Ẩn danh"
             embed_feedback.color = discord.Color.dark_grey() 
-            embed_feedback.set_footer(text="Selvaria Feedback System • Secret Mode")
-            # Ảnh thumbnail Hacker ngầu
-            embed_feedback.set_thumbnail(url="https://cdn.discordapp.com/attachments/1422951421669670933/1449514392856035589/large_1644454427094.jpg?ex=693f2cf9&is=693ddb79&hm=eff0fc59b901b09092e8772a1684a554841ba1fd8d76790eccfbd531a0d85408")
-            # Dùng trích dẫn (>) thay vì khung code
+            # Footer tự động đổi tên
+            embed_feedback.set_footer(text=f"{bot_name} Feedback System • Secret Mode")
+            # Link ảnh ẩn danh (bạn có thể thay link khác nếu thích)
+            embed_feedback.set_thumbnail(url="https://i.imgur.com/t9Uf9I8.png")
             embed_feedback.add_field(name="💬 Nội dung:", value=f"> {self.original_content}", inline=False)
         else:
-            # GIAO DIỆN CÔNG KHAI
+            # --- CẤU HÌNH CÔNG KHAI ---
             author = interaction.user
             embed_feedback.title = "📢 Phản hồi CÔNG KHAI"
             embed_feedback.color = discord.Color.teal() 
@@ -63,7 +72,7 @@ class AnonChoiceView(discord.ui.View):
             embed_feedback.add_field(name="👤 Người gửi:", value=f"{author.mention}\n(`{author.name}`)", inline=True)
             embed_feedback.add_field(name="💬 Nội dung Feedback:", value=f"> {self.original_content}", inline=False)
 
-        # Gửi đến Admin kèm nút phản hồi
+        # Gửi đến kênh Admin
         if feedback_channel:
             view_kem_nut = ChannelLauncherView(self.bot) 
             sent_message = await feedback_channel.send(embed=embed_feedback, view=view_kem_nut)
@@ -75,19 +84,22 @@ class AnonChoiceView(discord.ui.View):
         if self.message:
             await self.message.edit(view=self)
 
-        msg_confirm = "Đã gửi Ẩn danh thành công!" if is_anonymous else "Đã gửi Công khai thành công!"
-        await interaction.response.send_message(f"✅ {msg_confirm}", ephemeral=True)
+        # Thông báo xác nhận (Cũng dùng tên bot luôn nếu cần)
+        msg_confirm = f"Cảm ơn bạn đã đóng góp cho {bot_name}! (Gửi thành công)"
+        await interaction.followup.send(f"✅ {msg_confirm}", ephemeral=True)
 
     @discord.ui.button(label="Gửi Ẩn danh", style=discord.ButtonStyle.red, emoji="👤")
     async def anonymous_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.original_author_id:
             return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
         await self.send_feedback(interaction, is_anonymous=True)
 
     @discord.ui.button(label="Gửi Công khai", style=discord.ButtonStyle.green, emoji="✅")
     async def public_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.original_author_id:
             return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
         await self.send_feedback(interaction, is_anonymous=False)
 
 # --------------------------------------------------------------------
@@ -99,35 +111,34 @@ class ChannelLauncherView(discord.ui.View):
         super().__init__(timeout=None) 
         self.bot = bot_instance
         
-    # Tôi đổi tên nút thành "Gửi Feedback" như bạn yêu cầu
     @discord.ui.button(label="Gửi Feedback", style=discord.ButtonStyle.primary, emoji="✍️", custom_id="persistent_feedback_button")
     async def launch_feedback_dm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # 1. Phản hồi ngay tại kênh để tránh lỗi "Interaction failed"
         await interaction.response.send_message(
             "Đã nhận lệnh! Vui lòng kiểm tra Tin nhắn Trực tiếp (DM) của bạn.",
             ephemeral=True
         )
 
-        # 2. Tạo Embed hướng dẫn sử dụng
+        # [TỰ ĐỘNG LẤY TÊN BOT]
+        bot_name = self.bot.user.name
+
         embed_instruction = discord.Embed(
-            title="Hướng dẫn gửi Feedback",
+            title=f"✍️ Hướng dẫn Gửi Feedback cho {bot_name}",
             description=(
-                "Chào bạn! Bạn đang thực hiện gửi phản hồi/góp ý đến Selvaria.\n\n"
+                f"Chào bạn! Bạn đang thực hiện gửi phản hồi/góp ý đến **{bot_name}**.\n\n"
                 "**Bước 1:** Nhập nội dung bạn muốn nhắn và gửi ngay tại đây.\n"
                 "**Bước 2:** Bot sẽ hỏi bạn muốn gửi **Ẩn danh** hay **Công khai**.\n"
                 "**Bước 3:** Xác nhận để gửi đi."
             ),
             color=discord.Color.gold()
         )
-        embed_instruction.set_footer(text="Hệ thống tự động của Selvaria Bot ❤️")
+        # Footer tự động đổi tên
+        embed_instruction.set_footer(text=f"Hệ thống tự động của {bot_name} ❤️")
 
-        # 3. Gửi Embed vào DM người dùng
         try:
             await interaction.user.send(embed=embed_instruction)
         except discord.Forbidden:
-            # Trường hợp user chặn DM
             await interaction.followup.send(
-                "❌ Lỗi: Tôi không thể gửi DM cho bạn. Vui lòng mở khóa tin nhắn chờ (Privacy Settings).", 
+                "❌ Lỗi: Tôi không thể gửi DM cho bạn. Vui lòng mở khóa tin nhắn chờ.", 
                 ephemeral=True
             )
 
