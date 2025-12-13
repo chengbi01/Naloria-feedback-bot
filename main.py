@@ -69,7 +69,7 @@ class AnonChoiceView(discord.ui.View):
     async def send_feedback(self, interaction: discord.Interaction, is_anonymous: bool):
         feedback_channel = self.bot.get_channel(self.feedback_channel_id)
         
-        new_footer_base = "Cảm ơn quý khách đã feedback, Naloria sẽ cố gắng hoàn thiện hơn trong tương lai ❤️"
+        new_footer_base = "Cảm ơn quý khách đã feedback, Selvaria sẽ cố gắng hoàn thiện hơn trong tương lai ❤️"
 
         if is_anonymous:
             title = ":envelope_with_arrow: Phản hồi Ẩn danh Mới"
@@ -79,16 +79,17 @@ class AnonChoiceView(discord.ui.View):
             author = interaction.user
             
             # SỬ DỤNG MENTION TRONG TIÊU ĐỀ
-            title = f":loudspeaker: Phản hồi CÔNG KHAI từ {author.mention}" 
+            title = f":loudspeaker: Phản hồi CÔNG KHAI" 
             
             footer_text = f"{new_footer_base} (Gửi Công khai bởi {author} | ID: {author.id})"
             color = discord.Color.blue()
+            description_content = f"**Người gửi:** {author.mention}\n\n{self.original_content}"
         
         embed_feedback = discord.Embed(
-            title=title,
-            description=self.original_content,
-            color=color
-        )
+    title=title,
+    description=description_content,    # <--- ĐÚNG: Phải dùng biến mới tạo ở trên (có kèm tên)
+    color=color
+)
         embed_feedback.set_footer(text=footer_text)
         
         # 2. Gửi đến kênh Admin KÈM THEO NÚT "Gửi Feedback" (ĐÃ SỬA ĐỔI)
@@ -161,7 +162,7 @@ class ChannelLauncherView(discord.ui.View):
 
         # 2. Tạo Embed hướng dẫn sử dụng
         embed_instruction = discord.Embed(
-            title="hướng dẫn Gửi Feedback",
+            title="Hướng dẫn gửi Feedback",
             description=(
                 "Chào bạn! Bạn đang thực hiện gửi phản hồi/góp ý đến Ban Quản Trị.\n\n"
                 "**Bước 1:** Nhập nội dung bạn muốn nhắn và gửi ngay tại đây.\n"
@@ -170,7 +171,7 @@ class ChannelLauncherView(discord.ui.View):
             ),
             color=discord.Color.gold()
         )
-        embed_instruction.set_footer(text="Hệ thống tự động của Naloria")
+        embed_instruction.set_footer(text="Hệ thống tự động của Selvaria Bot ❤️")
 
         # 3. Gửi Embed vào DM người dùng
         try:
