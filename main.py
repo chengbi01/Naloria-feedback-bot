@@ -69,74 +69,65 @@ class AnonChoiceView(discord.ui.View):
     async def send_feedback(self, interaction: discord.Interaction, is_anonymous: bool):
         feedback_channel = self.bot.get_channel(self.feedback_channel_id)
         
-        new_footer_base = "Cảm ơn quý khách đã feedback, Selvaria sẽ cố gắng hoàn thiện hơn trong tương lai ❤️"
+        # Tạo Embed cơ bản
+        embed_feedback = discord.Embed(
+            timestamp=discord.utils.utcnow() # Thêm mốc thời gian
+        )
 
         if is_anonymous:
-            title = ":envelope_with_arrow: Phản hồi Ẩn danh Mới"
-            footer_text = f"{new_footer_base} (Gửi Ẩn danh)"
-            color = discord.Color.from_rgb(255, 99, 71)
+            # --- CẤU HÌNH ẨN DANH ---
+            embed_feedback.title = "🕵️ Phản hồi Ẩn danh"
+            embed_feedback.color = discord.Color.from_rgb(255, 99, 71) # Màu Đỏ Cam
+            embed_feedback.set_footer(text="Naloria Feedback System • Ẩn danh")
+            
+            # Ẩn danh thì dùng ảnh mặc định hoặc icon dấu hỏi
+            embed_feedback.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4645/4645949.png") # Icon ẩn danh minh họa
+            
+            # Nội dung
+            embed_feedback.add_field(name="💬 Nội dung:", value=f"```\n{self.original_content}\n```", inline=False)
+
         else:
+            # --- CẤU HÌNH CÔNG KHAI (Make it pop!) ---
             author = interaction.user
             
-            # SỬ DỤNG MENTION TRONG TIÊU ĐỀ
-            title = f":loudspeaker: Phản hồi CÔNG KHAI" 
+            embed_feedback.title = "📢 Phản hồi CÔNG KHAI"
+            embed_feedback.color = discord.Color.teal() # Màu Xanh Teal sáng hơn, đẹp hơn
+            embed_feedback.set_footer(text=f"ID User: {author.id}")
             
-            footer_text = f"{new_footer_base} (Gửi Công khai bởi {author} | ID: {author.id})"
-            color = discord.Color.blue()
-            description_content = f"**Người gửi:** {author.mention}\n\n{self.original_content}"
-        
-        embed_feedback = discord.Embed(
-    title=title,
-    description=description_content,    # <--- ĐÚNG: Phải dùng biến mới tạo ở trên (có kèm tên)
-    color=color
-)
-        embed_feedback.set_footer(text=footer_text)
-        
-        # 2. Gửi đến kênh Admin KÈM THEO NÚT "Gửi Feedback" (ĐÃ SỬA ĐỔI)
+            # 1. Thêm Avatar người gửi vào góc phải
+            if author.avatar:
+                embed_feedback.set_thumbnail(url=author.avatar.url)
+            
+            # 2. Dùng Field để làm nổi bật tên người gửi
+            embed_feedback.add_field(
+                name="👤 Người gửi:", 
+                value=f"{author.mention}\n(`{author.name}`)", 
+                inline=True
+            )
+            
+            # 3. Dùng Field riêng cho nội dung (để trong Block trích dẫn nhìn cho xịn)
+            embed_feedback.add_field(
+                name="💬 Nội dung Feedback:", 
+                value=f"> {self.original_content}", 
+                inline=False
+            )
+
+        # Gửi đến kênh Admin KÈM THEO NÚT
         if feedback_channel:
-            # Khởi tạo view chứa nút "Gửi Feedback" (Sử dụng lại ChannelLauncherView)
             view_kem_nut = ChannelLauncherView(self.bot) 
-            
-            # Gửi tin nhắn kèm theo (view=view_kem_nut)
             sent_message = await feedback_channel.send(embed=embed_feedback, view=view_kem_nut)
             await sent_message.add_reaction("✅")
         
-        # 3. Vô hiệu hóa nút trong DM
+        # Xử lý dọn dẹp view cũ (như cũ)
         self.stop()
         for item in self.children:
             item.disabled = True
         if self.message:
             await self.message.edit(view=self)
 
-        # 4. Gửi xác nhận cho người dùng
-        confirmation_msg = f"✅ Phản hồi của bạn đã được gửi thành công! ({'Ẩn danh' if is_anonymous else 'Công khai'})"
-        await interaction.response.send_message(embed=discord.Embed(title="Gửi Thành Công", description=confirmation_msg, color=discord.Color.green()), ephemeral=True)
-
-
-    @discord.ui.button(label="Gửi Ẩn danh", style=discord.ButtonStyle.red, emoji="👤")
-    async def anonymous_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.original_author_id:
-            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
-        await self.send_feedback(interaction, is_anonymous=True)
-
-    @discord.ui.button(label="Gửi Công khai", style=discord.ButtonStyle.green, emoji="✅")
-    async def public_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.original_author_id:
-            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
-        await self.send_feedback(interaction, is_anonymous=False)
-
-
-    @discord.ui.button(label="Gửi Ẩn danh", style=discord.ButtonStyle.red, emoji="👤")
-    async def anonymous_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.original_author_id:
-            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
-        await self.send_feedback(interaction, is_anonymous=True)
-
-    @discord.ui.button(label="Gửi Công khai", style=discord.ButtonStyle.green, emoji="✅")
-    async def public_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.original_author_id:
-            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
-        await self.send_feedback(interaction, is_anonymous=False)
+        # Xác nhận cho user
+        msg_confirm = "Đã gửi Ẩn danh!" if is_anonymous else "Đã gửi Công khai!"
+        await interaction.response.send_message(f"✅ {msg_confirm}", ephemeral=True)
 
 # --------------------------------------------------------------------
 # 2. LỚP VIEW CỐ ĐỊNH (Sửa đổi: Gửi Embed hướng dẫn vào DM)
