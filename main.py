@@ -69,9 +69,9 @@ class AnonChoiceView(discord.ui.View):
     async def send_feedback(self, interaction: discord.Interaction, is_anonymous: bool):
         feedback_channel = self.bot.get_channel(self.feedback_channel_id)
         
-        # Tạo Embed cơ bản
+        # 1. Tạo Embed cơ bản & Timestamp
         embed_feedback = discord.Embed(
-            timestamp=discord.utils.utcnow() # Thêm mốc thời gian
+            timestamp=discord.utils.utcnow() 
         )
 
         if is_anonymous:
@@ -80,53 +80,53 @@ class AnonChoiceView(discord.ui.View):
             embed_feedback.color = discord.Color.from_rgb(255, 99, 71) # Màu Đỏ Cam
             embed_feedback.set_footer(text="Naloria Feedback System • Ẩn danh")
             
-            # Ẩn danh thì dùng ảnh mặc định hoặc icon dấu hỏi
-            embed_feedback.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4645/4645949.png") # Icon ẩn danh minh họa
+            # Icon ẩn danh (dấu hỏi)
+            embed_feedback.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/4645/4645949.png")
             
-            # Nội dung
+            # Nội dung feedback
             embed_feedback.add_field(name="💬 Nội dung:", value=f"```\n{self.original_content}\n```", inline=False)
 
         else:
-            # --- CẤU HÌNH CÔNG KHAI (Make it pop!) ---
+            # --- CẤU HÌNH CÔNG KHAI (Giao diện đẹp) ---
             author = interaction.user
             
             embed_feedback.title = "📢 Phản hồi CÔNG KHAI"
-            embed_feedback.color = discord.Color.teal() # Màu Xanh Teal sáng hơn, đẹp hơn
+            embed_feedback.color = discord.Color.teal() # Màu Xanh Teal hiện đại
             embed_feedback.set_footer(text=f"ID User: {author.id}")
             
-            # 1. Thêm Avatar người gửi vào góc phải
+            # Avatar người gửi (Thumbnail)
             if author.avatar:
                 embed_feedback.set_thumbnail(url=author.avatar.url)
             
-            # 2. Dùng Field để làm nổi bật tên người gửi
+            # Field 1: Thông tin người gửi
             embed_feedback.add_field(
                 name="👤 Người gửi:", 
                 value=f"{author.mention}\n(`{author.name}`)", 
                 inline=True
             )
             
-            # 3. Dùng Field riêng cho nội dung (để trong Block trích dẫn nhìn cho xịn)
+            # Field 2: Nội dung (Dùng blockquote > để trích dẫn đẹp)
             embed_feedback.add_field(
                 name="💬 Nội dung Feedback:", 
                 value=f"> {self.original_content}", 
                 inline=False
             )
 
-        # Gửi đến kênh Admin KÈM THEO NÚT
+        # 2. Gửi đến kênh Admin KÈM THEO NÚT
         if feedback_channel:
             view_kem_nut = ChannelLauncherView(self.bot) 
             sent_message = await feedback_channel.send(embed=embed_feedback, view=view_kem_nut)
             await sent_message.add_reaction("✅")
         
-        # Xử lý dọn dẹp view cũ (như cũ)
+        # 3. Dọn dẹp view cũ trong DM
         self.stop()
         for item in self.children:
             item.disabled = True
         if self.message:
             await self.message.edit(view=self)
 
-        # Xác nhận cho user
-        msg_confirm = "Đã gửi Ẩn danh!" if is_anonymous else "Đã gửi Công khai!"
+        # 4. Báo thành công cho user
+        msg_confirm = "Đã gửi Ẩn danh thành công!" if is_anonymous else "Đã gửi Công khai thành công!"
         await interaction.response.send_message(f"✅ {msg_confirm}", ephemeral=True)
 
 # --------------------------------------------------------------------
