@@ -43,7 +43,7 @@ class AnonChoiceView(discord.ui.View):
                 view=self
             )
 
-    # ====================================================================
+# ====================================================================
 # 1. LỚP VIEW XỬ LÝ LỰA CHỌN TRONG DM (ANON/PUBLIC)
 # ====================================================================
 
@@ -139,10 +139,6 @@ class AnonChoiceView(discord.ui.View):
         await self.send_feedback(interaction, is_anonymous=False)
 
 # --------------------------------------------------------------------
-# 2. LỚP VIEW CỐ ĐỊNH TRONG KÊNH (PERSISTENT VIEW)
-# --------------------------------------------------------------------
-
-# --------------------------------------------------------------------
 # 2. LỚP VIEW CỐ ĐỊNH (Sửa đổi: Gửi Embed hướng dẫn vào DM)
 # --------------------------------------------------------------------
 
@@ -164,7 +160,7 @@ class ChannelLauncherView(discord.ui.View):
         embed_instruction = discord.Embed(
             title="Hướng dẫn gửi Feedback",
             description=(
-                "Chào bạn! Bạn đang thực hiện gửi phản hồi/góp ý đến Ban Quản Trị.\n\n"
+                "Chào bạn! Bạn đang thực hiện gửi phản hồi/góp ý đến Selvaria.\n\n"
                 "**Bước 1:** Nhập nội dung bạn muốn nhắn và gửi ngay tại đây.\n"
                 "**Bước 2:** Bot sẽ hỏi bạn muốn gửi **Ẩn danh** hay **Công khai**.\n"
                 "**Bước 3:** Xác nhận để gửi đi."
