@@ -171,9 +171,9 @@ async def setup_feedback(ctx):
         return await ctx.send("Lệnh này chỉ có thể được sử dụng trong máy chủ (server).")
 
     embed = discord.Embed(
-        title="📝 Kênh Phản hồi & Góp ý Chính thức 📝",
+        title="📝 Kênh Feedback 📝",
         description=(
-            "Bạn có thể gửi phản hồi, báo lỗi, hoặc góp ý tính năng.\n\n"
+            "Bạn hãy gửi feedback để giúp chúng mình hoàn thiện tốt hơn trong tương lai nhé ❤️.\n\n"
             "**CÁCH SỬ DỤNG:**\n"
             "1. Nhấn nút **'Gửi Phản hồi/Góp ý'** bên dưới.\n"
             "2. Bot sẽ mở **Tin nhắn Trực tiếp (DM)** với bạn."
