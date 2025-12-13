@@ -43,6 +43,29 @@ class AnonChoiceView(discord.ui.View):
                 view=self
             )
 
+    # ====================================================================
+# 1. LỚP VIEW XỬ LÝ LỰA CHỌN TRONG DM (ANON/PUBLIC)
+# ====================================================================
+
+class AnonChoiceView(discord.ui.View):
+    def __init__(self, original_content, original_author_id, feedback_channel_id, bot_instance):
+        super().__init__(timeout=180) 
+        self.original_content = original_content
+        self.original_author_id = original_author_id
+        self.feedback_channel_id = feedback_channel_id
+        self.bot = bot_instance
+        self.message = None 
+
+    async def on_timeout(self):
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            await self.message.edit(
+                content="⚠️ **Lựa chọn phản hồi đã hết thời gian (3 phút).** Vui lòng gửi lại tin nhắn.", 
+                embed=None, 
+                view=self
+            )
+
     async def send_feedback(self, interaction: discord.Interaction, is_anonymous: bool):
         feedback_channel = self.bot.get_channel(self.feedback_channel_id)
         
@@ -68,9 +91,13 @@ class AnonChoiceView(discord.ui.View):
         )
         embed_feedback.set_footer(text=footer_text)
         
-        # 2. Gửi đến kênh Admin
+        # 2. Gửi đến kênh Admin KÈM THEO NÚT "Gửi Feedback" (ĐÃ SỬA ĐỔI)
         if feedback_channel:
-            sent_message = await feedback_channel.send(embed=embed_feedback)
+            # Khởi tạo view chứa nút "Gửi Feedback" (Sử dụng lại ChannelLauncherView)
+            view_kem_nut = ChannelLauncherView(self.bot) 
+            
+            # Gửi tin nhắn kèm theo (view=view_kem_nut)
+            sent_message = await feedback_channel.send(embed=embed_feedback, view=view_kem_nut)
             await sent_message.add_reaction("✅")
         
         # 3. Vô hiệu hóa nút trong DM
@@ -97,8 +124,25 @@ class AnonChoiceView(discord.ui.View):
             return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
         await self.send_feedback(interaction, is_anonymous=False)
 
+
+    @discord.ui.button(label="Gửi Ẩn danh", style=discord.ButtonStyle.red, emoji="👤")
+    async def anonymous_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.original_author_id:
+            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
+        await self.send_feedback(interaction, is_anonymous=True)
+
+    @discord.ui.button(label="Gửi Công khai", style=discord.ButtonStyle.green, emoji="✅")
+    async def public_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.original_author_id:
+            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
+        await self.send_feedback(interaction, is_anonymous=False)
+
 # --------------------------------------------------------------------
 # 2. LỚP VIEW CỐ ĐỊNH TRONG KÊNH (PERSISTENT VIEW)
+# --------------------------------------------------------------------
+
+# --------------------------------------------------------------------
+# 2. LỚP VIEW CỐ ĐỊNH (Sửa đổi: Gửi Embed hướng dẫn vào DM)
 # --------------------------------------------------------------------
 
 class ChannelLauncherView(discord.ui.View):
@@ -106,20 +150,35 @@ class ChannelLauncherView(discord.ui.View):
         super().__init__(timeout=None) 
         self.bot = bot_instance
         
-    @discord.ui.button(label="Gửi Phản hồi/Góp ý", style=discord.ButtonStyle.primary, emoji="✍️", custom_id="persistent_feedback_button")
+    # Tôi đổi tên nút thành "Gửi Feedback" như bạn yêu cầu
+    @discord.ui.button(label="Gửi Feedback", style=discord.ButtonStyle.primary, emoji="✍️", custom_id="persistent_feedback_button")
     async def launch_feedback_dm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # 1. Phản hồi ngay tại kênh để tránh lỗi "Interaction failed"
         await interaction.response.send_message(
-            "Đã nhận được yêu cầu! Vui lòng kiểm tra Tin nhắn Trực tiếp (DM) để tiếp tục.",
+            "Đã nhận lệnh! Vui lòng kiểm tra Tin nhắn Trực tiếp (DM) của bạn.",
             ephemeral=True
         )
 
+        # 2. Tạo Embed hướng dẫn sử dụng
+        embed_instruction = discord.Embed(
+            title="hướng dẫn Gửi Feedback",
+            description=(
+                "Chào bạn! Bạn đang thực hiện gửi phản hồi/góp ý đến Ban Quản Trị.\n\n"
+                "**Bước 1:** Nhập nội dung bạn muốn nhắn và gửi ngay tại đây.\n"
+                "**Bước 2:** Bot sẽ hỏi bạn muốn gửi **Ẩn danh** hay **Công khai**.\n"
+                "**Bước 3:** Xác nhận để gửi đi."
+            ),
+            color=discord.Color.gold()
+        )
+        embed_instruction.set_footer(text="Hệ thống tự động của Naloria")
+
+        # 3. Gửi Embed vào DM người dùng
         try:
-            await interaction.user.send(
-                "Chào bạn! Vui lòng **gõ và gửi nội dung phản hồi** của bạn vào kênh DM này. Sau đó, tôi sẽ hỏi bạn muốn gửi **Ẩn danh** hay **Công khai**."
-            )
+            await interaction.user.send(embed=embed_instruction)
         except discord.Forbidden:
+            # Trường hợp user chặn DM
             await interaction.followup.send(
-                "❌ Lỗi: Tôi không thể gửi DM cho bạn. Vui lòng kiểm tra cài đặt quyền riêng tư.", 
+                "❌ Lỗi: Tôi không thể gửi DM cho bạn. Vui lòng mở khóa tin nhắn chờ (Privacy Settings).", 
                 ephemeral=True
             )
 
