@@ -16,7 +16,7 @@ except:
     FEEDBACK_CHANNEL_ID = 0
 
 # ====================================================================
-# 1. HỆ THỐNG QUẢN LÝ DỮ LIỆU (JSON)
+# 1. HỆ THỐNG QUẢN LÝ DỮ LIỆU
 # ====================================================================
 FILES = {
     "config": "config.json",
@@ -61,10 +61,10 @@ def is_bot_admin(interaction: discord.Interaction):
     return False
 
 # ====================================================================
-# 3. CLASS VIEW (GIỮ NGUYÊN FEEDBACK + THÊM VIEW MARRY)
+# 3. CLASS VIEW (NÚT BẤM)
 # ====================================================================
 
-# --- [GIỮ NGUYÊN] VIEW FEEDBACK ---
+# --- VIEW FEEDBACK ---
 class ChannelLauncherView(discord.ui.View):
     def __init__(self, bot_instance):
         super().__init__(timeout=None) 
@@ -121,7 +121,7 @@ class AnonChoiceView(discord.ui.View):
         await interaction.response.defer(ephemeral=True)
         await self.send_fb(interaction, False)
 
-# --- [MỚI] VIEW CẦU HÔN ---
+# --- VIEW CẦU HÔN ---
 class ProposalView(discord.ui.View):
     def __init__(self, author, target, item_name):
         super().__init__(timeout=60)
@@ -142,7 +142,6 @@ class ProposalView(discord.ui.View):
         self.value = True
         for child in self.children: child.disabled = True
         
-        # Nội dung khi thành công
         embed = discord.Embed(
             description=f"🎉 **{self.author.mention}** đã cầu hôn thành công **{self.target.mention}**, 2 bạn là cặp đôi hạnh phúc nhất lúc này! 💘",
             color=discord.Color.from_rgb(255, 105, 180)
@@ -159,7 +158,7 @@ class ProposalView(discord.ui.View):
         await interaction.response.edit_message(content=f"😢 **{self.target.mention}** đã từ chối lời cầu hôn...", view=self)
         self.stop()
 
-# --- [MỚI] VIEW LY HÔN ---
+# --- VIEW LY HÔN ---
 class DivorceView(discord.ui.View):
     def __init__(self, author, partner_id):
         super().__init__(timeout=60)
@@ -176,10 +175,8 @@ class DivorceView(discord.ui.View):
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.author.id: 
             return await interaction.response.send_message("❌ Chỉ người tạo lệnh mới được bấm nút này.", ephemeral=True)
-        
         self.value = True
         self.stop()
-        # Nội dung khi ly hôn
         embed = discord.Embed(
             description=f"💔 Chia buồn cặp đôi {self.author.mention} và <@{self.partner_id}> đã đường ai nấy đi.",
             color=discord.Color.dark_gray()
@@ -195,36 +192,16 @@ class DivorceView(discord.ui.View):
         await interaction.response.edit_message(content="😅 Phù... May mà bạn đã suy nghĩ lại.", view=None, embed=None)
 
 # ====================================================================
-# 4. CÁC LỆNH ADMIN (PREFIX + SLASH)
+# 4. CÁC LỆNH ADMIN
 # ====================================================================
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def setprefix(ctx, new_prefix: str):
+@bot.tree.command(name="set_prefix", description="Đổi dấu lệnh (Prefix) cho Bot")
+@app_commands.describe(new_prefix="Nhập ký tự muốn đổi (Ví dụ: ! hoặc . hoặc ?)")
+@app_commands.checks.has_permissions(administrator=True)
+async def set_prefix(interaction: discord.Interaction, new_prefix: str):
     config = load_json(FILES["config"])
     config["prefix"] = new_prefix
     save_json(FILES["config"], config)
-    bot.command_prefix = new_prefix
-    await ctx.send(f"✅ Đã đổi prefix thành: `{new_prefix}`")
-
-@bot.command(aliases=['a', 'add'])
-@commands.has_permissions(administrator=True)
-async def add_money(ctx, type: str, user: discord.Member, amount: int):
-    if type.lower() not in ['cash', 'c']: return
-    economy = load_json(FILES["economy"])
-    user_id = str(user.id)
-    economy[user_id] = economy.get(user_id, 0) + amount
-    save_json(FILES["economy"], economy)
-    await ctx.send(f"✅ **ADMIN:** Cộng **{amount:,} VNĐ** cho {user.mention}. (Dư: {economy[user_id]:,})")
-
-@bot.command(aliases=['s', 'sub'])
-@commands.has_permissions(administrator=True)
-async def sub_money(ctx, type: str, user: discord.Member, amount: int):
-    if type.lower() not in ['cash', 'c']: return
-    economy = load_json(FILES["economy"])
-    user_id = str(user.id)
-    economy[user_id] = max(0, economy.get(user_id, 0) - amount)
-    save_json(FILES["economy"], economy)
-    await ctx.send(f"✅ **ADMIN:** Trừ **{amount:,} VNĐ** của {user.mention}. (Dư: {economy[user_id]:,})")
+    await interaction.response.send_message(embed=discord.Embed(description=f"✅ Đã đổi prefix thành: `{new_prefix}`", color=discord.Color.green()))
 
 @bot.tree.command(name="set_admin_role", description="Chọn Role Admin Bot")
 @app_commands.describe(role="Role quản trị")
@@ -233,7 +210,7 @@ async def set_admin_role(interaction: discord.Interaction, role: discord.Role):
     config = load_json(FILES["config"])
     config["admin_role_id"] = role.id
     save_json(FILES["config"], config)
-    await interaction.response.send_message(f"✅ Role Admin Bot: {role.mention}")
+    await interaction.response.send_message(embed=discord.Embed(description=f"✅ Đã thiết lập Role Admin Bot: {role.mention}", color=discord.Color.green()))
 
 @bot.tree.command(name="item_create", description="Tạo vật phẩm Shop")
 @app_commands.check(is_bot_admin)
@@ -241,73 +218,91 @@ async def item_create(interaction: discord.Interaction, name: str, price: int, e
     shop = load_json(FILES["shop"])
     shop.append({"id": len(shop)+1, "name": name, "price": price, "emoji": emoji})
     save_json(FILES["shop"], shop)
-    await interaction.response.send_message(f"✅ Đã thêm: {emoji} **{name}** - {price:,} VNĐ")
+    await interaction.response.send_message(embed=discord.Embed(description=f"✅ Đã thêm: {emoji} **{name}** - {price:,} VNĐ", color=discord.Color.green()))
 
 @bot.tree.command(name="item_delete", description="Xóa vật phẩm Shop")
 @app_commands.check(is_bot_admin)
 async def item_delete(interaction: discord.Interaction, item_index: int):
     shop = load_json(FILES["shop"])
-    if item_index < 1 or item_index > len(shop): return await interaction.response.send_message("❌ ID không tồn tại.", ephemeral=True)
+    if item_index < 1 or item_index > len(shop): return await interaction.response.send_message(embed=discord.Embed(description="❌ ID không tồn tại.", color=discord.Color.red()), ephemeral=True)
     deleted = shop.pop(item_index - 1)
     for idx, item in enumerate(shop): item["id"] = idx + 1
     save_json(FILES["shop"], shop)
-    await interaction.response.send_message(f"🗑️ Đã xóa: {deleted['name']}")
+    await interaction.response.send_message(embed=discord.Embed(description=f"🗑️ Đã xóa: {deleted['name']}", color=discord.Color.green()))
 
 @bot.tree.command(name="take_item", description="Tịch thu vật phẩm")
 @app_commands.check(is_bot_admin)
 async def take_item(interaction: discord.Interaction, user: discord.Member, item_index: int, quantity: int = 1):
     shop = load_json(FILES["shop"])
-    if item_index < 1 or item_index > len(shop): return await interaction.response.send_message("❌ ID sai.", ephemeral=True)
+    if item_index < 1 or item_index > len(shop): return await interaction.response.send_message(embed=discord.Embed(description="❌ ID sai.", color=discord.Color.red()), ephemeral=True)
     item_name = shop[item_index-1]["name"]
     inv = load_json(FILES["inventory"])
     uid = str(user.id)
-    if uid not in inv or item_name not in inv[uid]: return await interaction.response.send_message("❌ User không có món này.", ephemeral=True)
+    if uid not in inv or item_name not in inv[uid]: return await interaction.response.send_message(embed=discord.Embed(description="❌ User không có món này.", color=discord.Color.red()), ephemeral=True)
     inv[uid][item_name] -= quantity
     if inv[uid][item_name] <= 0: del inv[uid][item_name]
     save_json(FILES["inventory"], inv)
-    await interaction.response.send_message(f"👮 Đã tịch thu **{quantity}x {item_name}** của {user.mention}")
+    await interaction.response.send_message(embed=discord.Embed(description=f"👮 Đã tịch thu **{quantity}x {item_name}** của {user.mention}", color=discord.Color.orange()))
+
+@bot.command(aliases=['ac', 'add'])
+@commands.has_permissions(administrator=True)
+async def add_money(ctx, user: discord.Member, amount: int):
+    economy = load_json(FILES["economy"])
+    user_id = str(user.id)
+    economy[user_id] = economy.get(user_id, 0) + amount
+    save_json(FILES["economy"], economy)
+    await ctx.send(embed=discord.Embed(description=f"✅ **ADMIN:** Cộng **{amount:,} VNĐ** cho {user.mention}.\n💰 Số dư mới: {economy[user_id]:,} VNĐ", color=discord.Color.green()))
+
+@bot.command(aliases=['sc', 'sub'])
+@commands.has_permissions(administrator=True)
+async def sub_money(ctx, user: discord.Member, amount: int):
+    economy = load_json(FILES["economy"])
+    user_id = str(user.id)
+    economy[user_id] = max(0, economy.get(user_id, 0) - amount)
+    save_json(FILES["economy"], economy)
+    await ctx.send(embed=discord.Embed(description=f"✅ **ADMIN:** Trừ **{amount:,} VNĐ** của {user.mention}.\n💰 Số dư mới: {economy[user_id]:,} VNĐ", color=discord.Color.green()))
 
 # ====================================================================
-# 5. USER COMMANDS (SHOP, BUY, INV, GIFT)
+# 5. USER COMMANDS
 # ====================================================================
 @bot.command()
 async def shop(ctx):
     shop = load_json(FILES["shop"])
-    if not shop: return await ctx.send("🏪 Shop trống!")
-    embed = discord.Embed(title=f"🏪 {bot.user.name} Shop Rings!", color=discord.Color.purple())
+    if not shop: return await ctx.send(embed=discord.Embed(description="🏪 Shop trống!", color=discord.Color.gold()))
+    embed = discord.Embed(title=f"🏪 {bot.user.name} Shop", color=discord.Color.purple())
     desc = ""
     for item in shop: desc += f"**{item['id']:02}.** {item['emoji']} **{item['name']}**\n• Giá: {item['price']:,} VNĐ\n\n"
     embed.description = desc
-    embed.set_footer(text=f"Trang 1/1 • {datetime.datetime.now().strftime('%H:%M %d/%m/%Y')}")
+    embed.set_footer(text=f"Cập nhật: {datetime.datetime.now().strftime('%H:%M')}")
     await ctx.send(embed=embed)
 
 @bot.command()
-async def buy(ctx, idx: int, qty: int):
-    if qty < 2: return await ctx.send("❌ Số lượng mua tối thiểu phải là 2!")
+async def buy(ctx, idx: int, qty: int = 1):
+    if qty < 1: return await ctx.send(embed=discord.Embed(description="❌ Số lượng mua tối thiểu là 1.", color=discord.Color.red()))
     shop = load_json(FILES["shop"])
     eco = load_json(FILES["economy"])
     inv = load_json(FILES["inventory"])
     uid = str(ctx.author.id)
-    if idx < 1 or idx > len(shop): return await ctx.send("❌ ID sản phẩm sai.")
+    if idx < 1 or idx > len(shop): return await ctx.send(embed=discord.Embed(description="❌ ID sản phẩm sai.", color=discord.Color.red()))
     item = shop[idx-1]
     cost = item['price'] * qty
-    if eco.get(uid, 0) < cost: return await ctx.send(f"❌ Bạn không đủ tiền! Cần: {cost:,} VNĐ.")
+    if eco.get(uid, 0) < cost: return await ctx.send(embed=discord.Embed(description=f"❌ Thiếu tiền! Cần: {cost:,} VNĐ.", color=discord.Color.red()))
     eco[uid] -= cost
     if uid not in inv: inv[uid] = {}
     inv[uid][item['name']] = inv[uid].get(item['name'], 0) + qty
     save_json(FILES["economy"], eco)
     save_json(FILES["inventory"], inv)
-    await ctx.send(f"✅ Giao dịch thành công! Bạn đã mua **{qty}x {item['name']}**.\n💸 Tổng thiệt hại: {cost:,} VNĐ")
+    await ctx.send(embed=discord.Embed(description=f"✅ Giao dịch thành công! Mua **{qty}x {item['name']}**.\n💸 Tổng tiền: {cost:,} VNĐ", color=discord.Color.green()))
 
 @bot.command(aliases=['inv', 'inventory'])
 async def show_inv(ctx):
     inv = load_json(FILES["inventory"])
     uid = str(ctx.author.id)
-    embed = discord.Embed(title=f"🎒 Kho đồ của {ctx.author.name}", color=discord.Color.blue())
-    if uid not in inv or not inv[uid]: embed.description = "*Trống trơn...*"
+    embed = discord.Embed(title=f"🎒 Túi đồ của {ctx.author.name}", color=discord.Color.blue())
+    if uid not in inv or not inv[uid]: embed.description = "*Trống trơn.*"
     else:
         desc = ""
-        for k, v in inv[uid].items(): desc += f"📦 **{k}**: {v} cái\n"
+        for k, v in inv[uid].items(): desc += f"📦 **{k}**: {v}\n"
         embed.description = desc
     await ctx.send(embed=embed)
 
@@ -315,190 +310,124 @@ async def show_inv(ctx):
 async def gift(ctx, target: discord.Member, *, item_name: str):
     inv = load_json(FILES["inventory"])
     sid, tid = str(ctx.author.id), str(target.id)
-    if sid not in inv or item_name not in inv[sid]: return await ctx.send(f"❌ Bạn không có vật phẩm **{item_name}**.")
+    if sid not in inv or item_name not in inv[sid]: return await ctx.send(embed=discord.Embed(description=f"❌ Bạn không có **{item_name}**.", color=discord.Color.red()))
     inv[sid][item_name] -= 1
     if inv[sid][item_name] <= 0: del inv[sid][item_name]
     if tid not in inv: inv[tid] = {}
     inv[tid][item_name] = inv[tid].get(item_name, 0) + 1
     save_json(FILES["inventory"], inv)
-    await ctx.send(f"🎁 {ctx.author.mention} đã tặng **1x {item_name}** cho {target.mention}!")
+    await ctx.send(embed=discord.Embed(description=f"🎁 {ctx.author.mention} đã tặng **{item_name}** cho {target.mention}!", color=discord.Color.green()))
 
 # ====================================================================
-# 6. HỆ THỐNG KẾT HÔN (MARRY 2.0 - FULL TÍNH NĂNG)
+# 6. MARRY SYSTEM (Full Embed)
 # ====================================================================
+
+@bot.command()
+async def divorce(ctx):
+    data = load_json(FILES["marriages"])
+    uid = str(ctx.author.id)
+    if uid not in data: return await ctx.send(embed=discord.Embed(description="❌ Bạn đang độc thân mà?", color=discord.Color.red()))
+    embed = discord.Embed(title="💔 Đơn Ly Hôn", description="Bạn có chắc chắn muốn kết thúc không?", color=discord.Color.red())
+    partner_id = data[uid]["partner_id"]
+    view = DivorceView(author=ctx.author, partner_id=partner_id)
+    msg = await ctx.send(embed=embed, view=view)
+    await view.wait()
+    if view.value is True:
+        pid = str(partner_id)
+        if pid in data: del data[pid]
+        if uid in data: del data[uid]
+        save_json(FILES["marriages"], data)
 
 @bot.command(aliases=['mry', 'marry'])
 async def marriage_system(ctx, arg1=None, arg2=None, *, arg3=None):
     data = load_json(FILES["marriages"])
     uid = str(ctx.author.id)
     
-    # --- [1] LY HÔN (divorce) ---
-    if arg1 and arg1.lower() == "divorce":
-        if uid not in data: return await ctx.send("❌ Bạn đang độc thân mà?")
-        
-        embed = discord.Embed(title="💔 Đơn Ly Hôn", description="Bạn có chắc chắn muốn kết thúc cuộc hôn nhân này không?", color=discord.Color.red())
-        partner_id = data[uid]["partner_id"]
-        view = DivorceView(author=ctx.author, partner_id=partner_id)
-        msg = await ctx.send(embed=embed, view=view)
-        await view.wait()
-        
-        if view.value is True:
-            # Xóa data cả 2
-            pid = str(partner_id)
-            if pid in data: del data[pid]
-            if uid in data: del data[uid]
-            save_json(FILES["marriages"], data)
-        return
-
-    # --- [2] TĂNG ĐIỂM YÊU THƯƠNG (luv) ---
+    # --- [1] LUV ---
     if arg1 and arg1.lower() == "luv":
-        if uid not in data: return await ctx.send("❌ Bạn chưa kết hôn!")
-        
+        if uid not in data: return await ctx.send(embed=discord.Embed(description="❌ Bạn chưa kết hôn!", color=discord.Color.red()))
         user_data = data[uid]
         last_luv = user_data.get("last_luv_timestamp", 0)
         now_ts = datetime.datetime.now().timestamp()
-        
-        # Check Cooldown 1 giờ (3600s)
         if now_ts - last_luv < 3600:
             remaining = int(3600 - (now_ts - last_luv))
-            minutes = remaining // 60
-            return await ctx.send(f"⏳ Bạn có thể gửi lời yêu thương đến người ấy trong **{minutes} phút** tới.", delete_after=5)
-
-        # Cộng điểm
+            return await ctx.send(embed=discord.Embed(description=f"⏳ Chờ **{remaining//60} phút** nữa nhé.", color=discord.Color.gold()), delete_after=5)
         pid = str(user_data["partner_id"])
         new_points = user_data.get("love_points", 0) + 1
-        
         data[uid]["love_points"] = new_points
         data[uid]["last_luv_timestamp"] = now_ts
-        if pid in data:
-            data[pid]["love_points"] = new_points
-        
+        if pid in data: data[pid]["love_points"] = new_points
         save_json(FILES["marriages"], data)
-        
         partner_user = await bot.fetch_user(int(pid))
-        embed = discord.Embed(
-            description=f"💖 **{ctx.author.mention}** đang cảm thấy hạnh phúc vô bờ khi bên cạnh **{partner_user.mention}**! 🥰\n📈 **Điểm yêu thương:** {new_points}",
-            color=discord.Color.pink()
-        )
-        await ctx.send(embed=embed)
-        return
+        return await ctx.send(embed=discord.Embed(description=f"💖 **{ctx.author.mention}** đã gửi yêu thương đến **{partner_user.mention}**! (Điểm: {new_points})", color=discord.Color.pink()))
 
-    # --- [3] TÙY CHỈNH PROFILE (image/thumbnail/caption) ---
+    # --- [2] CUSTOMIZE ---
     if arg1 and arg1.lower() in ["image", "thumbnail", "caption"]:
-        if uid not in data: return await ctx.send("❌ Bạn chưa kết hôn!")
-        if not arg2: return await ctx.send(f"❌ Vui lòng nhập nội dung! (VD: `{ctx.prefix}marry image [link]`)")
+        if uid not in data: return await ctx.send(embed=discord.Embed(description="❌ Bạn chưa kết hôn!", color=discord.Color.red()))
+        cmd_type = arg1.lower()
+        content = None
+        if cmd_type in ["image", "thumbnail"]:
+            if ctx.message.attachments: content = ctx.message.attachments[0].url
+            elif arg2: content = arg2
+            else: return await ctx.send(embed=discord.Embed(description=f"❌ Vui lòng đính kèm ảnh!", color=discord.Color.red()))
+        elif cmd_type == "caption":
+            if not arg2: return await ctx.send(embed=discord.Embed(description=f"❌ Vui lòng nhập nội dung!", color=discord.Color.red()))
+            content = arg2
+            if arg3: content = f"{arg2} {arg3}"
         
-        content = arg2 
-        if arg3: content = f"{arg2} {arg3}" # Nối chuỗi nếu có khoảng trắng
-
         key_map = {"image": "image_url", "thumbnail": "thumbnail_url", "caption": "caption"}
-        key = key_map[arg1.lower()]
-        
-        # Cập nhật cho cả 2
+        key = key_map[cmd_type]
         pid = str(data[uid]["partner_id"])
         data[uid][key] = content
         if pid in data: data[pid][key] = content
-        
         save_json(FILES["marriages"], data)
-        await ctx.send(f"✅ Đã cập nhật **{arg1}** thành công!")
-        return
+        return await ctx.send(embed=discord.Embed(description=f"✅ Đã cập nhật **{cmd_type}** thành công!", color=discord.Color.green()))
 
-    # --- [4] XEM TRẠNG THÁI (Nếu không tag ai) ---
+    # --- [3] STATUS ---
     if not ctx.message.mentions:
-        # Nếu Độc thân
-        if uid not in data:
-            embed = discord.Embed(
-                description="🍂 **Bạn đang chưa có tình yêu...**\nChắc hẳn bạn đã từng rất hạnh phúc phải không .....",
-                color=discord.Color.light_grey()
-            )
-            return await ctx.send(embed=embed)
-        
-        # Nếu Đã kết hôn (Hiện Profile Đẹp)
+        if uid not in data: return await ctx.send(embed=discord.Embed(description="🍂 **Bạn đang chưa có tình yêu...**\nChắc hẳn bạn đã từng rất hạnh phúc phải không .....", color=discord.Color.light_grey()))
         m_data = data[uid]
-        partner_id = m_data["partner_id"]
-        partner = await bot.fetch_user(partner_id)
-        
-        # Tính ngày
+        try: partner = await bot.fetch_user(m_data["partner_id"]); p_name = partner.name
+        except: p_name = "Unknown"
         m_date = datetime.datetime.fromtimestamp(m_data["marriage_date"])
         duration = (datetime.datetime.now() - m_date).days
-        
-        embed = discord.Embed(
-            title=f"💞 {ctx.author.name}, bạn đang hạnh phúc với {partner.name}!",
-            color=discord.Color.from_rgb(47, 49, 54)
-        )
-        
-        desc = (
-            f"📅 **Ngày kết hôn:** {m_date.strftime('%d tháng %m năm %Y')} ({duration} ngày)\n"
-            f"💍 **Nhẫn đính hôn:** {m_data['ring_name']}\n"
-            f"💗 **Điểm yêu thương:** {m_data.get('love_points', 0)} Điểm\n\n"
-        )
-        if m_data.get("caption"): desc += f"📝 *\"{m_data['caption']}\"*\n"
+        embed = discord.Embed(title=f"💞 {ctx.author.name} x {p_name}", color=discord.Color.from_rgb(47, 49, 54))
+        desc = f"📅 **Ngày cưới:** {m_date.strftime('%d/%m/%Y')} ({duration} ngày)\n💍 **Nhẫn:** {m_data['ring_name']}\n💗 **Love:** {m_data.get('love_points', 0)}"
+        if m_data.get("caption"): desc += f"\n\n📝 *\"{m_data['caption']}\"*"
         desc += "\n`(づ ￣ ³￣)づ`"
-        
         embed.description = desc
         if m_data.get("thumbnail_url"): embed.set_thumbnail(url=m_data["thumbnail_url"])
         if m_data.get("image_url"): embed.set_image(url=m_data["image_url"])
-        
-        await ctx.send(embed=embed)
-        return
+        return await ctx.send(embed=embed)
 
-    # --- [5] CẦU HÔN (Nếu tag ai đó) ---
+    # --- [4] PROPOSAL ---
     target = ctx.message.mentions[0]
-    
-    # Logic kiểm tra trạng thái (Chặn ngoại tình/cướp bồ)
     if uid in data:
         p_name = (await bot.fetch_user(data[uid]["partner_id"])).name
-        return await ctx.send(embed=discord.Embed(description=f"❌ Bạn quên mất tình yêu **{p_name}** (kết hôn cùng) rồi hay sao? 😠", color=discord.Color.red()))
-    
+        return await ctx.send(embed=discord.Embed(description=f"❌ Bạn quên mất tình yêu **{p_name}** rồi sao?", color=discord.Color.red()))
     if str(target.id) in data:
         p_name_target = (await bot.fetch_user(data[str(target.id)]["partner_id"])).name
-        return await ctx.send(embed=discord.Embed(description=f"❌ **{target.name}** đã còn bạn đời tri kỉ là **{p_name_target}** (kết hôn cùng) rồi! 😢", color=discord.Color.red()))
-
-    if target.id == ctx.author.id or target.bot: return await ctx.send("❌ Đối tượng không hợp lệ.")
-
-    # Kiểm tra nhẫn
+        return await ctx.send(embed=discord.Embed(description=f"❌ **{target.name}** đã có tri kỉ là **{p_name_target}** rồi!", color=discord.Color.red()))
+    if target.id == ctx.author.id or target.bot: return await ctx.send(embed=discord.Embed(description="❌ Đối tượng không hợp lệ.", color=discord.Color.red()))
     try: ring_idx = int(arg2)
-    except: return await ctx.send("❌ Thiếu số thứ tự nhẫn! (VD: `!marry @User 1`)")
-    
-    shop_data = load_json(FILES["shop"])
-    if ring_idx < 1 or ring_idx > len(shop_data): return await ctx.send("❌ Nhẫn không tồn tại.")
-    ring = shop_data[ring_idx-1]
-    
+    except: return await ctx.send(embed=discord.Embed(description=f"❌ Thiếu mã nhẫn! VD: `{ctx.prefix}marry {target.name} 1`", color=discord.Color.red()))
+    shop = load_json(FILES["shop"])
+    if ring_idx < 1 or ring_idx > len(shop): return await ctx.send(embed=discord.Embed(description="❌ Mã nhẫn không đúng.", color=discord.Color.red()))
+    ring = shop[ring_idx-1]
     inv = load_json(FILES["inventory"])
-    if uid not in inv or ring["name"] not in inv[uid]: return await ctx.send(f"❌ Bạn chưa mua nhẫn **{ring['name']}**!")
+    if uid not in inv or ring["name"] not in inv[uid]: return await ctx.send(embed=discord.Embed(description=f"❌ Bạn chưa có nhẫn **{ring['name']}**.", color=discord.Color.red()))
 
-    # Gửi lời cầu hôn
-    embed = discord.Embed(
-        title="💍 Lời Cầu Hôn",
-        description=f"**{target.mention}**, bạn nhận được lời cầu hôn từ **{ctx.author.mention}**!\n\n💎 Vật phẩm đính ước: **{ring['emoji']} {ring['name']}**",
-        color=discord.Color.pink()
-    )
+    embed = discord.Embed(title="💍 Lời Cầu Hôn", description=f"**{target.mention}**, {ctx.author.mention} cầu hôn bạn bằng **{ring['emoji']} {ring['name']}**!", color=discord.Color.pink())
     view = ProposalView(author=ctx.author, target=target, item_name=ring["name"])
-    msg = await ctx.send(content=target.mention, embed=embed, view=view)
-    
+    await ctx.send(content=target.mention, embed=embed, view=view)
     await view.wait()
-    
     if view.value is True:
-        # Lưu dữ liệu Hôn nhân
         now_ts = datetime.datetime.now().timestamp()
-        marriage_info = {
-            "partner_id": target.id,
-            "marriage_date": now_ts,
-            "ring_name": f"{ring['emoji']} {ring['name']}",
-            "love_points": 0,
-            "image_url": "",
-            "thumbnail_url": "",
-            "caption": "",
-            "last_luv_timestamp": 0
-        }
-        
+        marriage_info = {"partner_id": target.id, "marriage_date": now_ts, "ring_name": f"{ring['emoji']} {ring['name']}", "love_points": 0, "image_url": "", "thumbnail_url": "", "caption": "", "last_luv_timestamp": 0}
         data[uid] = marriage_info.copy()
         marriage_info["partner_id"] = ctx.author.id
         data[str(target.id)] = marriage_info
-        
         save_json(FILES["marriages"], data)
-        
-        # Trừ nhẫn
         inv[uid][ring["name"]] -= 1
         if inv[uid][ring["name"]] <= 0: del inv[uid][ring["name"]]
         save_json(FILES["inventory"], inv)
@@ -516,7 +445,6 @@ async def on_ready():
 @bot.event
 async def on_message(message):
     if message.author.bot: return
-    # Xử lý DM Feedback (Giữ nguyên)
     if isinstance(message.channel, discord.DMChannel):
         if len(message.content) < 2: return
         view = AnonChoiceView(message.content, message.author.id, FEEDBACK_CHANNEL_ID, bot)
