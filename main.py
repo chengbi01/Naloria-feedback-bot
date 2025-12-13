@@ -20,10 +20,6 @@ try:
 except (TypeError, ValueError):
     FEEDBACK_CHANNEL_ID = 0 
 
-# ====================================================================
-# LỚP VIEW XỬ LÝ LỰA CHỌN TRONG DM (ANON/PUBLIC)
-# ====================================================================
-
 class AnonChoiceView(discord.ui.View):
     def __init__(self, original_content, original_author_id, feedback_channel_id, bot_instance):
         super().__init__(timeout=180) 
@@ -43,61 +39,36 @@ class AnonChoiceView(discord.ui.View):
                 view=self
             )
 
-    # --- HÀM GỬI FEEDBACK (UPDATE GIAO DIỆN MỚI) ---
     async def send_feedback(self, interaction: discord.Interaction, is_anonymous: bool):
         feedback_channel = self.bot.get_channel(self.feedback_channel_id)
-        
-        embed_feedback = discord.Embed(
-            timestamp=discord.utils.utcnow() 
-        )
+        embed_feedback = discord.Embed(timestamp=discord.utils.utcnow())
 
         if is_anonymous:
-            # --- CẤU HÌNH ẨN DANH (Giao diện Ngầu hơn) ---
+            # GIAO DIỆN ẨN DANH MỚI
             embed_feedback.title = "🕵️ Phản hồi Ẩn danh"
-            # Đổi màu sang xám đen (Dark Grey) cho bí ẩn (hoặc giữ màu đỏ nếu bạn thích)
             embed_feedback.color = discord.Color.dark_grey() 
             embed_feedback.set_footer(text="Naloria Feedback System • Secret Mode")
-            
-            # [THAY ẢNH Ở ĐÂY] Ảnh Hacker bí ẩn
-            embed_feedback.set_thumbnail(url="[https://cdn-icons-png.flaticon.com/512/3665/3665909.png](https://cdn-icons-png.flaticon.com/512/3665/3665909.png)")
-            
-            # SỬA NỘI DUNG: Dùng trích dẫn (>) thay vì code block
-            embed_feedback.add_field(
-                name="💬 Nội dung:", 
-                value=f"> {self.original_content}", # Dùng dấu > nhìn sẽ đẹp hơn
-                inline=False
-            )
-
+            # Ảnh thumbnail Hacker ngầu
+            embed_feedback.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3665/3665909.png")
+            # Dùng trích dẫn (>) thay vì khung code
+            embed_feedback.add_field(name="💬 Nội dung:", value=f"> {self.original_content}", inline=False)
         else:
-            # --- CẤU HÌNH CÔNG KHAI ---
+            # GIAO DIỆN CÔNG KHAI
             author = interaction.user
-            
             embed_feedback.title = "📢 Phản hồi CÔNG KHAI"
             embed_feedback.color = discord.Color.teal() 
             embed_feedback.set_footer(text=f"ID User: {author.id}")
-            
             if author.avatar:
                 embed_feedback.set_thumbnail(url=author.avatar.url)
-            
-            embed_feedback.add_field(
-                name="👤 Người gửi:", 
-                value=f"{author.mention}\n(`{author.name}`)", 
-                inline=True
-            )
-            
-            embed_feedback.add_field(
-                name="💬 Nội dung Feedback:", 
-                value=f"> {self.original_content}", 
-                inline=False
-            )
+            embed_feedback.add_field(name="👤 Người gửi:", value=f"{author.mention}\n(`{author.name}`)", inline=True)
+            embed_feedback.add_field(name="💬 Nội dung Feedback:", value=f"> {self.original_content}", inline=False)
 
-        # Gửi đến kênh Admin KÈM THEO NÚT
+        # Gửi đến Admin kèm nút phản hồi
         if feedback_channel:
             view_kem_nut = ChannelLauncherView(self.bot) 
             sent_message = await feedback_channel.send(embed=embed_feedback, view=view_kem_nut)
             await sent_message.add_reaction("✅")
         
-        # Dọn dẹp view cũ
         self.stop()
         for item in self.children:
             item.disabled = True
@@ -107,7 +78,6 @@ class AnonChoiceView(discord.ui.View):
         msg_confirm = "Đã gửi Ẩn danh thành công!" if is_anonymous else "Đã gửi Công khai thành công!"
         await interaction.response.send_message(f"✅ {msg_confirm}", ephemeral=True)
 
-    # --- CÁC NÚT BẤM ---
     @discord.ui.button(label="Gửi Ẩn danh", style=discord.ButtonStyle.red, emoji="👤")
     async def anonymous_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.original_author_id:
