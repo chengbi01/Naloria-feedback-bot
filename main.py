@@ -47,9 +47,9 @@ class AnonChoiceView(discord.ui.View):
             # GIAO DIỆN ẨN DANH MỚI
             embed_feedback.title = "🕵️ Phản hồi Ẩn danh"
             embed_feedback.color = discord.Color.dark_grey() 
-            embed_feedback.set_footer(text="Naloria Feedback System • Secret Mode")
+            embed_feedback.set_footer(text="Selvaria Feedback System • Secret Mode")
             # Ảnh thumbnail Hacker ngầu
-            embed_feedback.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3665/3665909.png")
+            embed_feedback.set_thumbnail(url="https://cdn.discordapp.com/attachments/1422951421669670933/1449514392856035589/large_1644454427094.jpg?ex=693f2cf9&is=693ddb79&hm=eff0fc59b901b09092e8772a1684a554841ba1fd8d76790eccfbd531a0d85408")
             # Dùng trích dẫn (>) thay vì khung code
             embed_feedback.add_field(name="💬 Nội dung:", value=f"> {self.original_content}", inline=False)
         else:
