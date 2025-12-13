@@ -44,7 +44,7 @@ class AnonChoiceView(discord.ui.View):
             )
 
 # ====================================================================
-# 1. LỚP VIEW XỬ LÝ LỰA CHỌN TRONG DM (ANON/PUBLIC)
+# LỚP VIEW XỬ LÝ LỰA CHỌN TRONG DM (ANON/PUBLIC)
 # ====================================================================
 
 class AnonChoiceView(discord.ui.View):
@@ -66,6 +66,7 @@ class AnonChoiceView(discord.ui.View):
                 view=self
             )
 
+    # --- HÀM GỬI FEEDBACK (ĐÃ NÂNG CẤP GIAO DIỆN) ---
     async def send_feedback(self, interaction: discord.Interaction, is_anonymous: bool):
         feedback_channel = self.bot.get_channel(self.feedback_channel_id)
         
@@ -128,6 +129,33 @@ class AnonChoiceView(discord.ui.View):
         # 4. Báo thành công cho user
         msg_confirm = "Đã gửi Ẩn danh thành công!" if is_anonymous else "Đã gửi Công khai thành công!"
         await interaction.response.send_message(f"✅ {msg_confirm}", ephemeral=True)
+
+    # --- CÁC NÚT BẤM (QUAN TRỌNG: PHẢI GIỮ LẠI ĐOẠN NÀY) ---
+
+    @discord.ui.button(label="Gửi Ẩn danh", style=discord.ButtonStyle.red, emoji="👤")
+    async def anonymous_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.original_author_id:
+            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
+        await self.send_feedback(interaction, is_anonymous=True)
+
+    @discord.ui.button(label="Gửi Công khai", style=discord.ButtonStyle.green, emoji="✅")
+    async def public_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.original_author_id:
+            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
+        await self.send_feedback(interaction, is_anonymous=False)
+
+
+    @discord.ui.button(label="Gửi Ẩn danh", style=discord.ButtonStyle.red, emoji="👤")
+    async def anonymous_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.original_author_id:
+            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
+        await self.send_feedback(interaction, is_anonymous=True)
+
+    @discord.ui.button(label="Gửi Công khai", style=discord.ButtonStyle.green, emoji="✅")
+    async def public_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.original_author_id:
+            return await interaction.response.send_message("❌ Bạn không phải là người gửi tin nhắn này.", ephemeral=True)
+        await self.send_feedback(interaction, is_anonymous=False)
 
 # --------------------------------------------------------------------
 # 2. LỚP VIEW CỐ ĐỊNH (Sửa đổi: Gửi Embed hướng dẫn vào DM)
