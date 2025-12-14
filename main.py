@@ -342,7 +342,7 @@ async def show_inv(ctx):
     shop = load_json(FILES["shop"]) # Load thêm Shop để lấy icon
     uid = str(ctx.author.id)
     
-    embed = discord.Embed(title=f"🎒 Túi đồ của {ctx.author.name}", color=discord.Color.blue())
+    embed = discord.Embed(title=f":briefcase: Túi đồ của {ctx.author.name}", color=discord.Color.blue())
     
     if uid not in inv or not inv[uid]: 
         embed.description = "*Trống trơn... Hãy đi shopping đi!*"
@@ -447,9 +447,9 @@ async def marriage_system(ctx, arg1=None, arg2=None, *, arg3=None):
         except: p_name = "Unknown"
         m_date = datetime.datetime.fromtimestamp(m_data["marriage_date"])
         duration = (datetime.datetime.now() - m_date).days
-        embed = discord.Embed(title=f"💞 {ctx.author.name} x {p_name}", color=discord.Color.from_rgb(47, 49, 54))
-        desc = f"📅 **Ngày cưới:** {m_date.strftime('%d/%m/%Y')} ({duration} ngày)\n💍 **Nhẫn:** {m_data['ring_name']}\n💗 **Love:** {m_data.get('love_points', 0)}"
-        if m_data.get("caption"): desc += f"\n\n📝 *\"{m_data['caption']}\"*"
+        embed = discord.Embed(title=f"{ctx.author.name} đang hạnh phúc cùng {p_name} 💞", color=discord.Color.from_rgb(47, 49, 54))
+        desc = f"**Ngày cưới:** {m_date.strftime('%d/%m/%Y')} ({duration} ngày)\n **Nhẫn:** {m_data['ring_name']}\n💗 **Love:** {m_data.get('love_points', 0)}"
+        if m_data.get("caption"): desc += f"\n\n *\"{m_data['caption']}\"*"
         desc += "\n`(づ ￣ ³￣)づ`"
         embed.description = desc
         if m_data.get("thumbnail_url"): embed.set_thumbnail(url=m_data["thumbnail_url"])
