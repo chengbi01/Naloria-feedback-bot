@@ -310,8 +310,8 @@ async def sub_money(ctx, user: discord.Member, amount: int):
 @bot.command()
 async def shop(ctx):
     shop = load_json(FILES["shop"])
-    if not shop: return await ctx.send(embed=discord.Embed(description="🏪 Shop trống!", color=discord.Color.gold()))
-    embed = discord.Embed(title=f"🏪 {bot.user.name} Shop", color=discord.Color.purple())
+    if not shop: return await ctx.send(embed=discord.Embed(description="Shop của Selvaria đang trống!", color=discord.Color.gold()))
+    embed = discord.Embed(title=f"{bot.user.name} Shop", color=discord.Color.purple())
     desc = ""
     for item in shop: desc += f"**{item['id']:02}.** {item['emoji']} **{item['name']}**\n• Giá: {item['price']:,} VNĐ\n\n"
     embed.description = desc
