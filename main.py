@@ -190,7 +190,49 @@ class DivorceView(discord.ui.View):
         self.value = False
         self.stop()
         await interaction.response.edit_message(content="😅 Phù... May mà bạn đã suy nghĩ lại.", view=None, embed=None)
+# --- Lệnh Check Tiền (!cash) ---
+@bot.command(aliases=['cash', 'balance', 'bal'])
+async def check_balance(ctx):
+    economy = load_json(FILES["economy"])
+    uid = str(ctx.author.id)
+    bal = economy.get(uid, 0)
+    
+    # Tạo Embed hiển thị tiền
+    embed = discord.Embed(color=discord.Color.green())
+    embed.set_author(name=f"Ví tiền của {ctx.author.name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+    embed.description = f"💰 **Số dư hiện tại:** `{bal:,} VNĐ`"
+    
+    await ctx.send(embed=embed)
 
+# --- Lệnh Chuyển Tiền (!give @User [Số tiền]) ---
+@bot.command(aliases=['give', 'pay', 'transfer'])
+async def transfer_money(ctx, target: discord.Member, amount: int):
+    # 1. Kiểm tra điều kiện
+    if amount <= 0: 
+        return await ctx.send(embed=discord.Embed(description="❌ Số tiền chuyển phải lớn hơn 0.", color=discord.Color.red()))
+    if target.id == ctx.author.id: 
+        return await ctx.send(embed=discord.Embed(description="❌ Bạn không thể tự chuyển tiền cho chính mình (Self-transfer?).", color=discord.Color.red()))
+    if target.bot: 
+        return await ctx.send(embed=discord.Embed(description="❌ Bot không biết tiêu tiền đâu, đừng chuyển cho nó!", color=discord.Color.red()))
+
+    economy = load_json(FILES["economy"])
+    sid = str(ctx.author.id) # Người gửi
+    tid = str(target.id)     # Người nhận
+    
+    sender_bal = economy.get(sid, 0)
+
+    # 2. Kiểm tra số dư
+    if sender_bal < amount:
+        return await ctx.send(embed=discord.Embed(description=f"❌ **Không đủ tiền!**\nVí của bạn chỉ còn: `{sender_bal:,} VNĐ`", color=discord.Color.red()))
+
+    # 3. Thực hiện chuyển khoản
+    economy[sid] = sender_bal - amount
+    economy[tid] = economy.get(tid, 0) + amount
+    save_json(FILES["economy"], economy)
+
+    # 4. Thông báo thành công
+    embed = discord.Embed(description=f"💸 **GIAO DỊCH THÀNH CÔNG!**\n{ctx.author.mention} đã chuyển **{amount:,} VNĐ** cho {target.mention}.", color=discord.Color.green())
+    await ctx.send(embed=embed)
 # ====================================================================
 # 4. CÁC LỆNH ADMIN
 # ====================================================================
@@ -244,7 +286,7 @@ async def take_item(interaction: discord.Interaction, user: discord.Member, item
     save_json(FILES["inventory"], inv)
     await interaction.response.send_message(embed=discord.Embed(description=f"👮 Đã tịch thu **{quantity}x {item_name}** của {user.mention}", color=discord.Color.orange()))
 
-@bot.command(aliases=['ac', 'add'])
+@bot.command(aliases=['ac', 'addcash'])
 @commands.has_permissions(administrator=True)
 async def add_money(ctx, user: discord.Member, amount: int):
     economy = load_json(FILES["economy"])
@@ -253,7 +295,7 @@ async def add_money(ctx, user: discord.Member, amount: int):
     save_json(FILES["economy"], economy)
     await ctx.send(embed=discord.Embed(description=f"✅ **ADMIN:** Cộng **{amount:,} VNĐ** cho {user.mention}.\n💰 Số dư mới: {economy[user_id]:,} VNĐ", color=discord.Color.green()))
 
-@bot.command(aliases=['sc', 'sub'])
+@bot.command(aliases=['sc', 'subcash'])
 @commands.has_permissions(administrator=True)
 async def sub_money(ctx, user: discord.Member, amount: int):
     economy = load_json(FILES["economy"])
