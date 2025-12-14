@@ -339,13 +339,27 @@ async def buy(ctx, idx: int, qty: int = 1):
 @bot.command(aliases=['inv', 'inventory'])
 async def show_inv(ctx):
     inv = load_json(FILES["inventory"])
+    shop = load_json(FILES["shop"]) # Load thêm Shop để lấy icon
     uid = str(ctx.author.id)
+    
     embed = discord.Embed(title=f"🎒 Túi đồ của {ctx.author.name}", color=discord.Color.blue())
-    if uid not in inv or not inv[uid]: embed.description = "*Trống trơn.*"
+    
+    if uid not in inv or not inv[uid]: 
+        embed.description = "*Trống trơn... Hãy đi shopping đi!*"
     else:
+        # Tạo từ điển để tra cứu: Tên nhẫn -> Emoji
+        # Ví dụ: {"Nhẫn Cỏ": "🌿", "Nhẫn Kim Cương": "💎"}
+        emoji_map = {item['name']: item['emoji'] for item in shop}
+        
         desc = ""
-        for k, v in inv[uid].items(): desc += f"📦 **{k}**: {v}\n"
+        for item_name, quantity in inv[uid].items():
+            # Lấy emoji từ map, nếu không tìm thấy (do admin xóa shop) thì dùng 📦
+            icon = emoji_map.get(item_name, "📦")
+            desc += f"{icon} **{item_name}**: {quantity}\n"
+            
         embed.description = desc
+        embed.set_footer(text=f"Tổng số loại vật phẩm: {len(inv[uid])}")
+    
     await ctx.send(embed=embed)
 
 @bot.command()
